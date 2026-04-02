@@ -1,0 +1,1481 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>WREXLY</title>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+/* ─────────────────────────────────────────
+   TOKENS
+───────────────────────────────────────── */
+:root{
+  --c-bg:       #06070f;
+  --c-surface:  #0e1018;
+  --c-card:     #13151f;
+  --c-border:   rgba(255,255,255,.06);
+  --c-border2:  rgba(255,255,255,.1);
+
+  --c-gold:     #f0c040;
+  --c-gold2:    #ffd97d;
+  --c-gold-dim: rgba(240,192,64,.18);
+
+  --c-blue:     #3b8bff;
+  --c-blue-dim: rgba(59,139,255,.18);
+
+  --c-rare:     #3b8bff;
+  --c-epic:     #b060ff;
+  --c-legend:   #f0c040;
+  --c-common:   #7090a0;
+
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --r-xl: 30px;
+
+  --f-head: 'Syne', sans-serif;
+  --f-body: 'DM Sans', sans-serif;
+
+  --ease-out-back: cubic-bezier(.34,1.56,.64,1);
+  --ease-expo:     cubic-bezier(.19,1,.22,1);
+}
+
+/* ─────────────────────────────────────────
+   RESET
+───────────────────────────────────────── */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{height:100%;overscroll-behavior:none}
+body{
+  background:var(--c-bg);
+  color:#e8eaf0;
+  font-family:var(--f-body);
+  min-height:100vh;
+  overflow-x:hidden;
+  overscroll-behavior-y:none;
+}
+button{font-family:var(--f-body);border:none;outline:none;cursor:pointer;background:none;color:inherit}
+button:active{transform:scale(.96)}
+
+/* ─────────────────────────────────────────
+   NOISE OVERLAY
+───────────────────────────────────────── */
+body::before{
+  content:'';
+  position:fixed;inset:0;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='1'/%3E%3C/svg%3E");
+  opacity:.025;
+  pointer-events:none;
+  z-index:1000;
+}
+
+/* ─────────────────────────────────────────
+   CANVAS PARTICLES
+───────────────────────────────────────── */
+#cvs{
+  position:fixed;inset:0;
+  pointer-events:none;
+  z-index:0;
+  opacity:.7;
+}
+
+/* ─────────────────────────────────────────
+   APP WRAPPER
+───────────────────────────────────────── */
+.app{
+  position:relative;
+  z-index:1;
+  max-width:430px;
+  margin:0 auto;
+  min-height:100vh;
+}
+
+/* ─────────────────────────────────────────
+   SCREENS
+───────────────────────────────────────── */
+.screen{
+  display:none;
+  opacity:0;
+  transform:translateY(18px);
+  min-height:100vh;
+  padding-bottom:40px;
+}
+.screen.active{
+  display:block;
+  animation:screenIn .38s var(--ease-expo) forwards;
+}
+.screen.out{
+  display:block;
+  animation:screenOut .22s ease forwards;
+}
+
+@keyframes screenIn{
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes screenOut{
+  to{opacity:0;transform:translateY(-14px)}
+}
+
+/* ─────────────────────────────────────────
+   STICKY HEADER
+───────────────────────────────────────── */
+.header{
+  position:sticky;top:0;z-index:50;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px 14px;
+  background:linear-gradient(to bottom,var(--c-bg) 70%,transparent);
+  backdrop-filter:blur(16px);
+  -webkit-backdrop-filter:blur(16px);
+}
+
+.logo{
+  display:flex;align-items:center;gap:8px;
+}
+.logo-gem{
+  width:30px;height:30px;
+  position:relative;
+}
+.logo-gem svg{
+  width:100%;height:100%;
+  filter:drop-shadow(0 0 8px rgba(59,139,255,.7));
+  animation:gemSpin 8s linear infinite;
+}
+@keyframes gemSpin{
+  0%{filter:drop-shadow(0 0 8px rgba(59,139,255,.7))}
+  50%{filter:drop-shadow(0 0 14px rgba(176,96,255,.8))}
+  100%{filter:drop-shadow(0 0 8px rgba(59,139,255,.7))}
+}
+.logo-name{
+  font-family:var(--f-head);
+  font-size:17px;letter-spacing:3px;
+  color:#fff;
+}
+.logo-tag{
+  font-size:8px;letter-spacing:2px;
+  color:var(--c-common);
+  align-self:flex-end;
+  padding-bottom:2px;
+}
+
+/* Баланс */
+.bal-pill{
+  display:flex;align-items:center;gap:6px;
+  background:var(--c-card);
+  border:1px solid var(--c-border2);
+  border-radius:999px;
+  padding:7px 14px 7px 10px;
+  transition:box-shadow .3s;
+}
+.bal-pill.flash{
+  box-shadow:0 0 18px var(--c-gold-dim);
+}
+.bal-star{
+  font-size:14px;
+  animation:starRotate 4s linear infinite;
+}
+@keyframes starRotate{
+  0%,100%{transform:rotate(0deg) scale(1)}
+  25%{transform:rotate(15deg) scale(1.1)}
+  75%{transform:rotate(-15deg) scale(1.1)}
+}
+.bal-num{
+  font-family:var(--f-head);
+  font-size:14px;
+  color:var(--c-gold);
+  min-width:24px;
+  text-align:center;
+  transition:all .3s;
+}
+
+/* ─────────────────────────────────────────
+   STATUS BAR
+───────────────────────────────────────── */
+.status-bar{
+  display:flex;align-items:center;gap:8px;
+  margin:0 18px 20px;
+  padding:9px 14px;
+  background:var(--c-card);
+  border:1px solid var(--c-border);
+  border-radius:var(--r-sm);
+  font-size:12px;color:rgba(255,255,255,.4);
+}
+.s-dot{
+  width:6px;height:6px;border-radius:50%;
+  background:#333;flex-shrink:0;
+  transition:background .4s, box-shadow .4s;
+}
+.s-dot.live{background:#3fd47a;box-shadow:0 0 6px #3fd47a;}
+.s-dot.err {background:#ff4466;}
+.s-dot.spin{animation:dotPing .9s ease-in-out infinite;}
+@keyframes dotPing{0%,100%{opacity:1}50%{opacity:.2}}
+
+/* ─────────────────────────────────────────
+   BOOST BANNER
+───────────────────────────────────────── */
+.boost-banner{
+  margin:0 18px 24px;
+  position:relative;
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  cursor:pointer;
+  border:1px solid rgba(59,139,255,.22);
+  background:var(--c-card);
+  transition:transform .2s var(--ease-out-back), box-shadow .3s;
+}
+.boost-banner:active{transform:scale(.97)}
+.boost-banner:hover{box-shadow:0 0 30px rgba(59,139,255,.15)}
+
+/* Animated gradient blob */
+.boost-blob{
+  position:absolute;
+  width:200px;height:200px;
+  border-radius:50%;
+  background:radial-gradient(circle, rgba(59,139,255,.25) 0%, transparent 70%);
+  top:-60px;left:-40px;
+  animation:blobFloat 5s ease-in-out infinite;
+  pointer-events:none;
+}
+.boost-blob2{
+  right:-40px;top:-40px;left:auto;
+  background:radial-gradient(circle, rgba(176,96,255,.2) 0%, transparent 70%);
+  animation-delay:-2.5s;
+}
+@keyframes blobFloat{
+  0%,100%{transform:translate(0,0) scale(1)}
+  50%{transform:translate(12px,-10px) scale(1.08)}
+}
+
+.boost-inner{
+  position:relative;z-index:1;
+  display:flex;align-items:center;gap:14px;
+  padding:18px 20px;
+}
+.boost-emoji{
+  font-size:38px;flex-shrink:0;
+  animation:boltPop 2.5s ease-in-out infinite;
+}
+@keyframes boltPop{
+  0%,100%{transform:scale(1) rotate(0deg)}
+  50%{transform:scale(1.15) rotate(-8deg)}
+}
+.boost-copy{flex:1}
+.boost-title{
+  font-family:var(--f-head);
+  font-size:15px;letter-spacing:1.5px;
+  color:#fff;margin-bottom:4px;
+}
+.boost-sub{font-size:12px;color:rgba(255,255,255,.45);}
+.boost-hot{
+  font-family:var(--f-head);
+  font-size:9px;letter-spacing:2px;
+  background:#e8445a;color:#fff;
+  padding:4px 9px;border-radius:999px;
+  box-shadow:0 0 12px rgba(232,68,90,.5);
+  animation:hotPulse 1.6s ease-in-out infinite;
+}
+@keyframes hotPulse{
+  0%,100%{box-shadow:0 0 12px rgba(232,68,90,.5)}
+  50%{box-shadow:0 0 22px rgba(232,68,90,.8)}
+}
+
+/* ─────────────────────────────────────────
+   SECTION TITLE
+───────────────────────────────────────── */
+.sec-head{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 18px;
+  margin-bottom:14px;
+}
+.sec-title{
+  font-family:var(--f-head);
+  font-size:10px;letter-spacing:3px;
+  color:rgba(255,255,255,.3);
+  text-transform:uppercase;
+}
+.sec-badge{
+  font-size:10px;
+  color:rgba(255,255,255,.25);
+  background:var(--c-card);
+  padding:3px 10px;border-radius:999px;
+  border:1px solid var(--c-border);
+}
+
+/* ─────────────────────────────────────────
+   TIER GRID
+───────────────────────────────────────── */
+.tier-grid{
+  display:grid;
+  grid-template-columns:repeat(2,1fr);
+  gap:12px;
+  padding:0 18px;
+  margin-bottom:28px;
+}
+
+.tier-card{
+  position:relative;
+  border-radius:var(--r-lg);
+  padding:22px 14px 18px;
+  display:flex;flex-direction:column;
+  align-items:center;gap:7px;
+  cursor:pointer;
+  overflow:hidden;
+  background:var(--c-card);
+  border:1px solid var(--c-border);
+  transition:transform .2s var(--ease-out-back), border-color .3s, box-shadow .3s;
+  -webkit-user-select:none;user-select:none;
+}
+.tier-card:active{transform:scale(.94)}
+.tier-card:hover{border-color:var(--tier-c, var(--c-border2))}
+
+/* Top glow per tier */
+.tier-card::before{
+  content:'';
+  position:absolute;
+  top:0;left:50%;transform:translateX(-50%);
+  width:80%;height:60%;
+  background:radial-gradient(ellipse at 50% 0%, var(--tier-glow, rgba(255,255,255,.04)) 0%, transparent 80%);
+  pointer-events:none;
+  transition:opacity .3s;
+  opacity:.8;
+}
+.tier-card:hover::before{opacity:1.4}
+
+/* Shine sweep on hover */
+.tier-card::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(120deg,transparent 30%,rgba(255,255,255,.05) 50%,transparent 70%);
+  transform:translateX(-100%);
+  pointer-events:none;
+}
+.tier-card:hover::after{
+  animation:cardShine .5s ease forwards;
+}
+@keyframes cardShine{
+  to{transform:translateX(100%)}
+}
+
+.tier-card.common{ --tier-c:rgba(112,144,160,.4); --tier-glow:rgba(112,144,160,.12); }
+.tier-card.rare  { --tier-c:rgba(59,139,255,.4);  --tier-glow:rgba(59,139,255,.14); }
+.tier-card.epic  { --tier-c:rgba(176,96,255,.4);  --tier-glow:rgba(176,96,255,.16); }
+.tier-card.legend{ --tier-c:rgba(240,192,64,.4);  --tier-glow:rgba(240,192,64,.18); }
+
+.tier-card.legend{
+  border-color:rgba(240,192,64,.2);
+  box-shadow:0 0 30px rgba(240,192,64,.06);
+}
+
+.card-icon{
+  font-size:38px;
+  position:relative;z-index:1;
+  transition:transform .25s var(--ease-out-back);
+}
+.tier-card:active .card-icon{transform:scale(.88) rotate(-6deg)}
+
+.card-name{
+  position:relative;z-index:1;
+  font-family:var(--f-head);
+  font-size:12px;letter-spacing:2.5px;
+}
+.common .card-name{color:var(--c-common)}
+.rare   .card-name{color:var(--c-rare)}
+.epic   .card-name{color:var(--c-epic)}
+.legend .card-name{color:var(--c-legend)}
+
+.card-range{
+  position:relative;z-index:1;
+  font-size:11px;color:rgba(255,255,255,.35);
+}
+
+.card-price{
+  position:relative;z-index:1;
+  margin-top:4px;
+  font-family:var(--f-head);
+  font-size:13px;
+  color:var(--c-gold);
+  background:rgba(240,192,64,.08);
+  border:1px solid rgba(240,192,64,.2);
+  padding:4px 13px;
+  border-radius:999px;
+}
+
+/* ─────────────────────────────────────────
+   WINS TICKER
+───────────────────────────────────────── */
+.wins-wrap{
+  margin:0 18px 28px;
+}
+.win-row{
+  display:flex;align-items:center;gap:12px;
+  background:var(--c-card);
+  border:1px solid var(--c-border);
+  border-radius:var(--r-md);
+  padding:11px 14px;
+  margin-bottom:8px;
+  animation:rowIn .35s var(--ease-out-back) both;
+}
+@keyframes rowIn{
+  from{opacity:0;transform:translateX(-12px)}
+  to  {opacity:1;transform:translateX(0)}
+}
+.wr-ico{font-size:20px}
+.wr-info{flex:1}
+.wr-name{font-size:13px;font-weight:600;color:#dde}
+.wr-tier{font-size:11px;color:rgba(255,255,255,.3);margin-top:2px}
+.wr-amt{
+  font-family:var(--f-head);
+  font-size:14px;
+  color:var(--c-gold);
+}
+
+/* ─────────────────────────────────────────
+   ── ROULETTE SCREEN ──
+───────────────────────────────────────── */
+.rl-topbar{
+  display:flex;align-items:center;justify-content:space-between;
+  padding:16px 18px 0;
+}
+.btn-back{
+  display:flex;align-items:center;gap:5px;
+  font-size:14px;font-weight:600;
+  color:var(--c-blue);
+  background:var(--c-card);
+  border:1px solid var(--c-border2);
+  border-radius:var(--r-sm);
+  padding:9px 14px;
+  transition:var(--ease-out-back) .2s;
+}
+.btn-back span{font-size:20px;line-height:1;}
+.tb-bal{
+  font-family:var(--f-head);font-size:12px;
+  color:var(--c-gold);
+  background:var(--c-card);
+  border:1px solid var(--c-border2);
+  border-radius:999px;
+  padding:7px 14px;
+}
+
+.rl-hero{
+  text-align:center;
+  padding:22px 18px 20px;
+}
+.rl-badge{
+  display:inline-block;
+  font-family:var(--f-head);
+  font-size:9px;letter-spacing:3px;
+  padding:5px 16px;border-radius:999px;
+  margin-bottom:14px;
+  border:1px solid;
+}
+.rl-badge.common{color:var(--c-common);border-color:rgba(112,144,160,.3);background:rgba(112,144,160,.07)}
+.rl-badge.rare  {color:var(--c-rare);  border-color:rgba(59,139,255,.3); background:rgba(59,139,255,.08)}
+.rl-badge.epic  {color:var(--c-epic);  border-color:rgba(176,96,255,.3); background:rgba(176,96,255,.08)}
+.rl-badge.legend{color:var(--c-legend);border-color:rgba(240,192,64,.35);background:rgba(240,192,64,.08)}
+
+.rl-title{
+  font-family:var(--f-head);
+  font-size:24px;letter-spacing:2px;
+  color:#fff;margin-bottom:6px;
+}
+.rl-sub{font-size:13px;color:rgba(255,255,255,.35);}
+
+/* ── TRACK ── */
+.track-wrap{
+  position:relative;
+  margin:0 0 24px;
+}
+
+/* Arrow indicator */
+.track-arrow{
+  position:absolute;
+  top:-12px;left:50%;transform:translateX(-50%);
+  font-size:16px;z-index:10;
+  color:var(--c-gold);
+  filter:drop-shadow(0 0 6px var(--c-gold));
+  animation:arrowBob .9s ease-in-out infinite;
+}
+@keyframes arrowBob{
+  0%,100%{transform:translateX(-50%) translateY(0)}
+  50%    {transform:translateX(-50%) translateY(-5px)}
+}
+
+.track-viewport{
+  overflow:hidden;
+  border-radius:var(--r-lg);
+  border:1px solid var(--c-border2);
+  background:var(--c-surface);
+  position:relative;
+}
+
+/* Edge fades */
+.track-viewport::before,
+.track-viewport::after{
+  content:'';
+  position:absolute;top:0;bottom:0;
+  width:90px;z-index:5;
+  pointer-events:none;
+}
+.track-viewport::before{
+  left:0;
+  background:linear-gradient(to right,var(--c-bg),transparent);
+}
+.track-viewport::after{
+  right:0;
+  background:linear-gradient(to left,var(--c-bg),transparent);
+}
+
+/* Center highlight line */
+.track-center-line{
+  position:absolute;
+  top:0;bottom:0;
+  left:50%;transform:translateX(-50%);
+  width:92px;
+  border:1px solid rgba(240,192,64,.25);
+  border-radius:12px;
+  z-index:6;
+  pointer-events:none;
+  box-shadow:0 0 20px rgba(240,192,64,.08);
+}
+
+.reel{
+  display:flex;
+  gap:8px;
+  padding:10px;
+  will-change:transform;
+}
+
+.reel-item{
+  flex-shrink:0;
+  width:76px;height:76px;
+  border-radius:var(--r-md);
+  background:var(--c-card);
+  border:1px solid var(--c-border);
+  display:flex;flex-direction:column;
+  align-items:center;justify-content:center;
+  gap:4px;
+  transition:border-color .15s, box-shadow .15s;
+  position:relative;overflow:hidden;
+}
+/* subtle shimmer on each item */
+.reel-item::after{
+  content:'';
+  position:absolute;inset:0;
+  background:linear-gradient(135deg,rgba(255,255,255,.03) 0%,transparent 60%);
+}
+
+.reel-item.winner{
+  border-color:var(--c-gold) !important;
+  box-shadow:0 0 22px rgba(240,192,64,.35), inset 0 0 18px rgba(240,192,64,.04);
+  animation:winnerPop .45s var(--ease-out-back) forwards;
+}
+@keyframes winnerPop{
+  0% {transform:scale(1)}
+  55%{transform:scale(1.12)}
+  100%{transform:scale(1)}
+}
+
+.ri-ico{font-size:24px;line-height:1;position:relative;z-index:1}
+.ri-val{
+  font-family:var(--f-head);font-size:10px;
+  color:var(--c-gold);position:relative;z-index:1;
+}
+
+/* tier tint on items */
+.ri-common{border-color:rgba(112,144,160,.12)}
+.ri-rare  {border-color:rgba(59,139,255,.18); background:rgba(59,139,255,.03)}
+.ri-epic  {border-color:rgba(176,96,255,.2);  background:rgba(176,96,255,.03)}
+.ri-legend{border-color:rgba(240,192,64,.25); background:rgba(240,192,64,.04)}
+
+/* ── RESULT PILL ── */
+.result-pill{
+  display:none;
+  align-items:center;gap:12px;
+  margin:0 18px 20px;
+  padding:14px 18px;
+  background:var(--c-card);
+  border:1px solid rgba(240,192,64,.2);
+  border-radius:var(--r-lg);
+  animation:pillIn .4s var(--ease-out-back);
+}
+.result-pill.show{display:flex}
+@keyframes pillIn{
+  from{opacity:0;transform:translateY(10px) scale(.96)}
+  to  {opacity:1;transform:translateY(0) scale(1)}
+}
+.rp-ico{font-size:28px}
+.rp-got{font-size:11px;color:rgba(255,255,255,.35);margin-bottom:3px}
+.rp-amt{
+  font-family:var(--f-head);font-size:22px;
+  color:var(--c-gold);
+  text-shadow:0 0 18px rgba(240,192,64,.4);
+}
+
+/* ── SPIN BUTTONS ── */
+.spin-zone{
+  display:flex;flex-direction:column;
+  gap:10px;
+  padding:0 18px;
+}
+.spin-cost{
+  text-align:center;
+  font-size:12px;color:rgba(255,255,255,.35);
+  font-family:var(--f-head);letter-spacing:1px;
+}
+
+.btn-spin{
+  position:relative;
+  width:100%;padding:18px;
+  border-radius:var(--r-lg);
+  overflow:hidden;
+  font-family:var(--f-head);
+  font-size:15px;letter-spacing:3px;
+  color:#0a0805;
+  background:linear-gradient(110deg,#e0a010 0%,#f5d060 45%,#e0a010 100%);
+  background-size:200% 100%;
+  box-shadow:0 4px 28px rgba(240,192,64,.3);
+  transition:transform .2s var(--ease-out-back), box-shadow .2s;
+  animation:btnShimmer 3s linear infinite;
+}
+@keyframes btnShimmer{
+  0%  {background-position:100% 0}
+  100%{background-position:-100% 0}
+}
+.btn-spin:active{
+  transform:scale(.96);
+  box-shadow:0 2px 14px rgba(240,192,64,.2);
+}
+.btn-spin:disabled{
+  opacity:.4;cursor:not-allowed;
+  animation:none;
+  box-shadow:none;
+}
+
+/* shine sweep */
+.btn-spin-shine{
+  position:absolute;
+  top:-50%;left:-60%;
+  width:35%;height:200%;
+  background:rgba(255,255,255,.22);
+  transform:skewX(-20deg);
+  pointer-events:none;
+  animation:shineSweep 3s ease-in-out infinite;
+}
+@keyframes shineSweep{
+  0%  {left:-60%}
+  55% {left:130%}
+  100%{left:130%}
+}
+
+.btn-spin-x5{
+  background:var(--c-card);
+  color:var(--c-gold);
+  border:1px solid rgba(240,192,64,.25);
+  font-size:13px;padding:14px;
+  box-shadow:none;
+  animation:none;
+}
+.btn-spin-x5:active{background:rgba(240,192,64,.06)}
+
+/* rare/epic/legend spin button tints */
+.spin-btn-rare  .btn-spin{background:linear-gradient(110deg,#1860c0,#5a9fff,#1860c0);color:#fff;box-shadow:0 4px 24px rgba(59,139,255,.3)}
+.spin-btn-epic  .btn-spin{background:linear-gradient(110deg,#7030c8,#c070ff,#7030c8);color:#fff;box-shadow:0 4px 24px rgba(176,96,255,.3)}
+.spin-btn-legend .btn-spin{background:linear-gradient(110deg,#c08010,#f5d060,#c08010);color:#0a0805;box-shadow:0 4px 28px rgba(240,192,64,.4)}
+
+/* ─────────────────────────────────────────
+   ── BOOST SCREEN ──
+───────────────────────────────────────── */
+.boost-screen-hero{
+  text-align:center;
+  padding:12px 18px 28px;
+}
+.bsh-icon{
+  font-size:60px;margin-bottom:14px;
+  filter:drop-shadow(0 0 20px rgba(240,192,64,.5));
+  animation:boltPop 2s ease-in-out infinite;
+}
+.bsh-title{
+  font-family:var(--f-head);
+  font-size:22px;letter-spacing:3px;
+  color:#fff;margin-bottom:10px;
+}
+.bsh-desc{
+  font-size:13px;color:rgba(255,255,255,.4);
+  max-width:260px;margin:0 auto;line-height:1.7;
+}
+
+.boost-list{
+  padding:0 18px;
+  display:flex;flex-direction:column;gap:10px;
+}
+.b-level{
+  display:flex;align-items:center;gap:14px;
+  background:var(--c-card);
+  border:1px solid var(--c-border);
+  border-radius:var(--r-lg);
+  padding:16px 18px;
+  opacity:.55;
+  transition:opacity .3s, border-color .3s, box-shadow .3s;
+}
+.b-level.active{
+  opacity:1;
+  border-color:rgba(59,139,255,.4);
+  box-shadow:0 0 24px rgba(59,139,255,.12);
+}
+.b-level-ico{font-size:26px;flex-shrink:0}
+.b-level-info{flex:1}
+.b-level-name{font-size:14px;font-weight:600;color:#dde;margin-bottom:3px}
+.b-level-desc{font-size:12px;color:rgba(255,255,255,.3)}
+.b-level-status{
+  font-family:var(--f-head);font-size:10px;
+  letter-spacing:1px;color:var(--c-blue);
+}
+.btn-buy-boost{
+  background:var(--c-surface);
+  border:1px solid var(--c-border2);
+  border-radius:var(--r-sm);
+  color:var(--c-gold);
+  font-family:var(--f-head);
+  font-size:12px;
+  padding:8px 13px;
+  white-space:nowrap;
+  transition:.15s;
+}
+.btn-buy-boost:active{
+  background:rgba(240,192,64,.1);
+  transform:scale(.94);
+}
+
+/* ─────────────────────────────────────────
+   WIN MODAL
+───────────────────────────────────────── */
+.modal-bg{
+  display:none;
+  position:fixed;inset:0;z-index:200;
+  background:rgba(6,7,15,.88);
+  backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  align-items:center;justify-content:center;
+  padding:20px;
+}
+.modal-bg.open{
+  display:flex;
+  animation:fadeIn .2s ease;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+.win-box{
+  position:relative;
+  background:var(--c-card);
+  border:1px solid rgba(240,192,64,.2);
+  border-radius:var(--r-xl);
+  padding:40px 28px 32px;
+  width:100%;max-width:300px;
+  text-align:center;
+  overflow:hidden;
+  animation:boxPop .4s var(--ease-out-back);
+  box-shadow:0 0 60px rgba(240,192,64,.1);
+}
+@keyframes boxPop{
+  from{opacity:0;transform:scale(.85) translateY(20px)}
+  to  {opacity:1;transform:scale(1) translateY(0)}
+}
+
+.confetti-layer{
+  position:absolute;inset:0;
+  pointer-events:none;overflow:hidden;
+  border-radius:var(--r-xl);
+}
+.conf-piece{
+  position:absolute;
+  border-radius:2px;
+}
+
+.win-ico{
+  font-size:68px;
+  margin-bottom:14px;
+  animation:icoEntrance .5s var(--ease-out-back);
+  filter:drop-shadow(0 0 24px rgba(240,192,64,.5));
+}
+@keyframes icoEntrance{
+  from{transform:scale(.4) rotate(-20deg);opacity:0}
+  to  {transform:scale(1) rotate(0deg);opacity:1}
+}
+.win-title{
+  font-family:var(--f-head);
+  font-size:13px;letter-spacing:3px;
+  color:rgba(255,255,255,.5);
+  margin-bottom:12px;
+}
+.win-amount{
+  font-family:var(--f-head);
+  font-size:46px;font-weight:800;
+  color:var(--c-gold);
+  text-shadow:0 0 28px rgba(240,192,64,.4);
+  margin-bottom:6px;
+  animation:amountIn .4s var(--ease-out-back) .1s both;
+}
+@keyframes amountIn{
+  from{transform:scale(.7);opacity:0}
+  to  {transform:scale(1);opacity:1}
+}
+.win-sub{
+  font-size:13px;color:rgba(255,255,255,.35);
+  margin-bottom:26px;
+}
+
+.btn-win-close{
+  width:100%;padding:16px;
+  background:linear-gradient(110deg,#e0a010,#f5d060);
+  color:#0a0805;
+  font-family:var(--f-head);
+  font-size:13px;letter-spacing:2px;
+  border-radius:var(--r-md);
+  box-shadow:0 4px 22px rgba(240,192,64,.3);
+  transition:.15s;
+}
+.btn-win-close:active{transform:scale(.96)}
+
+/* ─────────────────────────────────────────
+   UTILITY
+───────────────────────────────────────── */
+.divider{
+  height:1px;
+  background:var(--c-border);
+  margin:0 18px 24px;
+}
+</style>
+</head>
+<body>
+
+<canvas id="cvs"></canvas>
+
+<div class="app">
+
+  <!-- ══════════════ MAIN ══════════════ -->
+  <div id="s-main" class="screen active">
+
+    <header class="header">
+      <div class="logo">
+        <div class="logo-gem">
+          <svg viewBox="0 0 32 32" fill="none">
+            <polygon points="16,2 28,10 28,22 16,30 4,22 4,10" fill="rgba(59,139,255,.15)" stroke="#3b8bff" stroke-width="1.2"/>
+            <polygon points="16,6 24,12 24,20 16,26 8,20 8,12" fill="rgba(59,139,255,.08)" stroke="rgba(59,139,255,.5)" stroke-width=".6"/>
+            <polygon points="16,10 20,14 20,18 16,22 12,18 12,14" fill="rgba(59,139,255,.2)"/>
+          </svg>
+        </div>
+        <span class="logo-name">WREXLY</span>
+        <span class="logo-tag">LOTTERY</span>
+      </div>
+      <div class="bal-pill" id="balPill">
+        <span class="bal-star">⭐</span>
+        <span class="bal-num" id="balNum">—</span>
+        <span style="font-size:11px;color:rgba(255,255,255,.3)">зірок</span>
+      </div>
+    </header>
+
+    <div class="status-bar">
+      <div class="s-dot spin" id="sDot"></div>
+      <span id="sText">Підключення...</span>
+    </div>
+
+    <!-- BOOST BANNER -->
+    <div class="boost-banner" onclick="go('s-boost')">
+      <div class="boost-blob"></div>
+      <div class="boost-blob boost-blob2"></div>
+      <div class="boost-inner">
+        <div class="boost-emoji">⚡</div>
+        <div class="boost-copy">
+          <div class="boost-title">UPGRADE BOOST</div>
+          <div class="boost-sub">Підвищуй виграші миттєво</div>
+        </div>
+        <div class="boost-hot">HOT</div>
+      </div>
+    </div>
+
+    <!-- TIERS -->
+    <div class="sec-head">
+      <span class="sec-title">Рулетки</span>
+      <span class="sec-badge">4 доступних</span>
+    </div>
+    <div class="tier-grid">
+      <div class="tier-card common" onclick="openRoulette('common',10,'COMMON','📦','до 30 ⭐')">
+        <div class="card-icon">📦</div>
+        <div class="card-name">COMMON</div>
+        <div class="card-range">до 30 ⭐</div>
+        <div class="card-price">10 ⭐</div>
+      </div>
+      <div class="tier-card rare" onclick="openRoulette('rare',25,'RARE','💎','до 100 ⭐')">
+        <div class="card-icon">💎</div>
+        <div class="card-name">RARE</div>
+        <div class="card-range">до 100 ⭐</div>
+        <div class="card-price">25 ⭐</div>
+      </div>
+      <div class="tier-card epic" onclick="openRoulette('epic',50,'EPIC','🔥','до 300 ⭐')">
+        <div class="card-icon">🔥</div>
+        <div class="card-name">EPIC</div>
+        <div class="card-range">до 300 ⭐</div>
+        <div class="card-price">50 ⭐</div>
+      </div>
+      <div class="tier-card legend" onclick="openRoulette('legend',100,'LEGEND','👑','до 1000 ⭐')">
+        <div class="card-icon">👑</div>
+        <div class="card-name">LEGEND</div>
+        <div class="card-range">до 1000 ⭐</div>
+        <div class="card-price">100 ⭐</div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <!-- WINS -->
+    <div class="sec-head">
+      <span class="sec-title">Останні виграші</span>
+    </div>
+    <div class="wins-wrap" id="winsWrap"></div>
+
+  </div>
+
+
+  <!-- ══════════════ ROULETTE ══════════════ -->
+  <div id="s-roulette" class="screen">
+
+    <div class="rl-topbar">
+      <button class="btn-back" onclick="back()"><span>‹</span>Назад</button>
+      <div class="tb-bal" id="rlBal">— ⭐</div>
+    </div>
+
+    <div class="rl-hero">
+      <div class="rl-badge" id="rlBadge">COMMON</div>
+      <h1 class="rl-title" id="rlTitle">Common Рулетка</h1>
+      <p class="rl-sub">Прокрути — отримай нагороду</p>
+    </div>
+
+    <div class="track-wrap">
+      <div class="track-arrow">▼</div>
+      <div class="track-viewport">
+        <div class="track-center-line"></div>
+        <div class="reel" id="reel"></div>
+      </div>
+    </div>
+
+    <div class="result-pill" id="resultPill">
+      <div class="rp-ico" id="rpIco">🎉</div>
+      <div>
+        <div class="rp-got">Твій виграш</div>
+        <div class="rp-amt" id="rpAmt">+50 ⭐</div>
+      </div>
+    </div>
+
+    <div class="spin-zone" id="spinZone">
+      <div class="spin-cost" id="spinCost">Вартість: 10 ⭐</div>
+      <button class="btn-spin" id="btnSpin" onclick="doSpin(1)">
+        КРУТИТИ
+        <div class="btn-spin-shine"></div>
+      </button>
+      <button class="btn-spin btn-spin-x5" id="btnX5" onclick="doSpin(5)">× 5 СПІНІВ</button>
+    </div>
+
+  </div>
+
+
+  <!-- ══════════════ BOOST ══════════════ -->
+  <div id="s-boost" class="screen">
+
+    <div class="rl-topbar">
+      <button class="btn-back" onclick="back()"><span>‹</span>Назад</button>
+    </div>
+
+    <div class="boost-screen-hero">
+      <div class="bsh-icon">⚡</div>
+      <div class="bsh-title">UPGRADE BOOST</div>
+      <div class="bsh-desc">Покращуй подарунки та отримуй більше зірок з кожного спіну</div>
+    </div>
+
+    <div class="boost-list">
+      <div class="b-level active" id="bl1">
+        <div class="b-level-ico">🌱</div>
+        <div class="b-level-info">
+          <div class="b-level-name">Рівень 1 · Базовий</div>
+          <div class="b-level-desc">+0% до виграшів</div>
+        </div>
+        <div class="b-level-status">АКТИВНИЙ</div>
+      </div>
+      <div class="b-level" id="bl2">
+        <div class="b-level-ico">🔥</div>
+        <div class="b-level-info">
+          <div class="b-level-name">Рівень 2 · Посилений</div>
+          <div class="b-level-desc">+25% до виграшів</div>
+        </div>
+        <button class="btn-buy-boost" onclick="buyBoost(2,200)">200 ⭐</button>
+      </div>
+      <div class="b-level" id="bl3">
+        <div class="b-level-ico">💎</div>
+        <div class="b-level-info">
+          <div class="b-level-name">Рівень 3 · Преміум</div>
+          <div class="b-level-desc">+50% до виграшів</div>
+        </div>
+        <button class="btn-buy-boost" onclick="buyBoost(3,500)">500 ⭐</button>
+      </div>
+      <div class="b-level" id="bl4">
+        <div class="b-level-ico">👑</div>
+        <div class="b-level-info">
+          <div class="b-level-name">Рівень 4 · Легенда</div>
+          <div class="b-level-desc">+100% до виграшів</div>
+        </div>
+        <button class="btn-buy-boost" onclick="buyBoost(4,1000)">1000 ⭐</button>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /app -->
+
+
+<!-- WIN MODAL -->
+<div class="modal-bg" id="winModal">
+  <div class="win-box">
+    <div class="confetti-layer" id="confettiLayer"></div>
+    <div class="win-ico" id="winIco">🏆</div>
+    <div class="win-title">ВИГРАШ</div>
+    <div class="win-amount" id="winAmt">+100 ⭐</div>
+    <div class="win-sub">зараховано на баланс</div>
+    <button class="btn-win-close" onclick="closeWin()">Забрати ✓</button>
+  </div>
+</div>
+
+
+<!-- ══════════════════════════════════════
+     animations.js  — єдиний JS файл
+══════════════════════════════════════ -->
+<script>
+/* ───────────────────────────────────────
+   CONFIG
+─────────────────────────────────────── */
+const BACKEND = 'https://wzgl6m8h-3000.euw.devtunnels.ms';
+
+const TIERS = {
+  common: { price:10,  items:[
+    {ico:'⭐',val:5,  lbl:'5 ⭐', r:'common'},
+    {ico:'⭐',val:8,  lbl:'8 ⭐', r:'common'},
+    {ico:'💫',val:15, lbl:'15 ⭐',r:'common'},
+    {ico:'💫',val:20, lbl:'20 ⭐',r:'rare'},
+    {ico:'✨',val:30, lbl:'30 ⭐',r:'epic'},
+  ]},
+  rare: { price:25, items:[
+    {ico:'⭐',val:10, lbl:'10 ⭐',r:'common'},
+    {ico:'💎',val:25, lbl:'25 ⭐',r:'common'},
+    {ico:'💎',val:40, lbl:'40 ⭐',r:'rare'},
+    {ico:'🔷',val:60, lbl:'60 ⭐',r:'rare'},
+    {ico:'✨',val:100,lbl:'100 ⭐',r:'epic'},
+  ]},
+  epic: { price:50, items:[
+    {ico:'⭐',val:20,  lbl:'20 ⭐', r:'common'},
+    {ico:'🔥',val:50,  lbl:'50 ⭐', r:'common'},
+    {ico:'🔥',val:80,  lbl:'80 ⭐', r:'rare'},
+    {ico:'💜',val:150, lbl:'150 ⭐',r:'epic'},
+    {ico:'🌟',val:300, lbl:'300 ⭐',r:'legend'},
+  ]},
+  legend:{ price:100,items:[
+    {ico:'⭐',val:50,  lbl:'50 ⭐',  r:'common'},
+    {ico:'👑',val:100, lbl:'100 ⭐', r:'common'},
+    {ico:'👑',val:200, lbl:'200 ⭐', r:'rare'},
+    {ico:'💛',val:500, lbl:'500 ⭐', r:'epic'},
+    {ico:'🏆',val:1000,lbl:'1000 ⭐',r:'legend'},
+  ]},
+};
+
+const FAKE_WINS = [
+  {ico:'🏆',name:'Олег М.',   tier:'LEGEND',amt:1000},
+  {ico:'🌟',name:'Марія К.',  tier:'EPIC',  amt:300},
+  {ico:'💎',name:'Іван Д.',   tier:'RARE',  amt:100},
+  {ico:'✨',name:'Аліна В.',  tier:'COMMON',amt:30},
+  {ico:'🔥',name:'Дмитро С.', tier:'EPIC',  amt:150},
+  {ico:'💛',name:'Катя Л.',   tier:'LEGEND',amt:500},
+];
+
+const SPIN_DUR  = 4600;   // мс
+const TRACK_LEN = 42;     // елементів на треку
+const tg = window.Telegram?.WebApp;
+
+/* ───────────────────────────────────────
+   STATE
+─────────────────────────────────────── */
+let screenStack = [];
+let curTier     = 'common';
+let spinning    = false;
+
+/* ───────────────────────────────────────
+   INIT
+─────────────────────────────────────── */
+(function init(){
+  tg?.expand();
+  tg?.setHeaderColor?.('#06070f');
+  tg?.setBackgroundColor?.('#06070f');
+
+  startParticles();
+  loadBalance();
+  renderWins(FAKE_WINS);
+  setInterval(() => addRandomWin(), 7000);
+})();
+
+/* ───────────────────────────────────────
+   PARTICLES (canvas)
+─────────────────────────────────────── */
+function startParticles(){
+  const c   = document.getElementById('cvs');
+  const ctx = c.getContext('2d');
+  const W   = ()=> c.width  = innerWidth;
+  const H   = ()=> c.height = innerHeight;
+  W(); H();
+  addEventListener('resize',()=>{W();H()});
+
+  const COLS = ['#f0c040','#3b8bff','#b060ff','#3fd47a','#ff6688'];
+  const pts  = Array.from({length:38},()=>mkPt(c));
+
+  function mkPt(c){
+    return {
+      x:Math.random()*c.width,
+      y:Math.random()*c.height,
+      r:Math.random()*1.4+.3,
+      vx:(Math.random()-.5)*.28,
+      vy:-(Math.random()*.35+.08),
+      a:Math.random()*.55+.1,
+      col:COLS[0|Math.random()*COLS.length],
+    };
+  }
+
+  function tick(){
+    ctx.clearRect(0,0,c.width,c.height);
+    pts.forEach(p=>{
+      ctx.beginPath();
+      ctx.arc(p.x,p.y,p.r,0,Math.PI*2);
+      ctx.fillStyle = p.col;
+      ctx.globalAlpha = p.a;
+      ctx.fill();
+      p.x+=p.vx; p.y+=p.vy;
+      p.a+=(Math.random()-.5)*.018;
+      p.a = Math.max(.05,Math.min(.65,p.a));
+      if(p.y<-4||p.x<-4||p.x>c.width+4)
+        Object.assign(p,mkPt(c),{y:c.height+4});
+    });
+    ctx.globalAlpha=1;
+    requestAnimationFrame(tick);
+  }
+  tick();
+}
+
+/* ───────────────────────────────────────
+   BALANCE
+─────────────────────────────────────── */
+async function loadBalance(){
+  setStatus('spin','Підключення...');
+  try{
+    const r = await fetch(`${BACKEND}/api/balance`,{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({initData: tg?.initData||''}),
+    });
+    const d = await r.json();
+    if(d.success){ setBalance(d.balance); setStatus('live','Онлайн'); }
+    else throw 0;
+  }catch{
+    setBalance('—'); setStatus('err','Помилка мережі');
+  }
+}
+
+function setBalance(v){
+  const el = document.getElementById('balNum');
+  const old = el.textContent;
+  el.textContent = v;
+  if(old!=='—'&&old!==String(v)){
+    /* flash animation */
+    const pill = document.getElementById('balPill');
+    pill.classList.remove('flash');
+    void pill.offsetWidth;
+    pill.classList.add('flash');
+    setTimeout(()=>pill.classList.remove('flash'),600);
+  }
+  /* sync roulette topbar */
+  const rb = document.getElementById('rlBal');
+  if(rb) rb.textContent = v+' ⭐';
+}
+
+function setStatus(state,txt){
+  const d = document.getElementById('sDot');
+  const t = document.getElementById('sText');
+  d.className = 's-dot '+state;
+  t.textContent = txt;
+}
+
+/* ───────────────────────────────────────
+   NAVIGATION
+─────────────────────────────────────── */
+function go(id, params={}){
+  const cur = document.querySelector('.screen.active');
+  if(cur){
+    screenStack.push(cur.id);
+    cur.classList.add('out');
+    setTimeout(()=>{ cur.classList.remove('active','out'); },220);
+  }
+  const next = document.getElementById(id);
+  if(!next) return;
+  setTimeout(()=>{
+    next.classList.add('active');
+    next.dispatchEvent(new CustomEvent('open',{detail:params}));
+  },80);
+  tg?.HapticFeedback?.impactOccurred('light');
+}
+
+function back(){
+  const cur = document.querySelector('.screen.active');
+  if(cur){
+    cur.classList.add('out');
+    setTimeout(()=>cur.classList.remove('active','out'),220);
+  }
+  const prevId = screenStack.pop()||'s-main';
+  setTimeout(()=>{
+    const p = document.getElementById(prevId);
+    p?.classList.add('active');
+    if(prevId==='s-main') loadBalance();
+  },80);
+  tg?.HapticFeedback?.impactOccurred('light');
+}
+
+/* ───────────────────────────────────────
+   WINS TICKER
+─────────────────────────────────────── */
+function renderWins(wins){
+  const w = document.getElementById('winsWrap');
+  w.innerHTML='';
+  wins.slice(0,5).forEach((x,i)=>{
+    const d = document.createElement('div');
+    d.className='win-row';
+    d.style.animationDelay = i*75+'ms';
+    d.innerHTML=`
+      <div class="wr-ico">${x.ico}</div>
+      <div class="wr-info">
+        <div class="wr-name">${esc(x.name)}</div>
+        <div class="wr-tier">${esc(x.tier)}</div>
+      </div>
+      <div class="wr-amt">+${x.amt} ⭐</div>`;
+    w.appendChild(d);
+  });
+}
+
+function addRandomWin(){
+  const w   = document.getElementById('winsWrap');
+  const wins = [
+    ...FAKE_WINS,
+    {ico:'⭐',name:'Богдан Т.',tier:'COMMON',amt:20},
+    {ico:'💜',name:'Ольга К.', tier:'EPIC',  amt:80},
+  ];
+  const x = wins[0|Math.random()*wins.length];
+  const d = document.createElement('div');
+  d.className='win-row';
+  d.innerHTML=`
+    <div class="wr-ico">${x.ico}</div>
+    <div class="wr-info">
+      <div class="wr-name">${esc(x.name)}</div>
+      <div class="wr-tier">${esc(x.tier)}</div>
+    </div>
+    <div class="wr-amt">+${x.amt} ⭐</div>`;
+  w.insertBefore(d, w.firstChild);
+  while(w.children.length>5) w.removeChild(w.lastChild);
+}
+
+/* ───────────────────────────────────────
+   ROULETTE OPEN
+─────────────────────────────────────── */
+function openRoulette(tier, price, label, ico, range){
+  curTier = tier;
+  document.getElementById('rlBadge').textContent  = label;
+  document.getElementById('rlBadge').className    = `rl-badge ${tier}`;
+  document.getElementById('rlTitle').textContent  = label+' Рулетка';
+  document.getElementById('spinCost').textContent = `Вартість: ${price} ⭐`;
+  document.getElementById('btnX5').textContent    = `× 5 СПІНІВ  (${price*5} ⭐)`;
+
+  /* Color the spin zone */
+  const sz = document.getElementById('spinZone');
+  sz.className = `spin-zone spin-btn-${tier}`;
+
+  /* Hide result */
+  document.getElementById('resultPill').classList.remove('show');
+
+  /* Build reel */
+  buildReel(tier);
+
+  /* Enable buttons */
+  setSpinEnabled(true);
+
+  go('s-roulette');
+  tg?.HapticFeedback?.impactOccurred('medium');
+}
+
+/* ───────────────────────────────────────
+   REEL BUILD
+─────────────────────────────────────── */
+function buildReel(tier, winnerIdx=-1, winner=null){
+  const reel  = document.getElementById('reel');
+  const items = TIERS[tier].items;
+  reel.style.transition = 'none';
+  reel.style.transform  = 'translateX(0)';
+  reel.innerHTML='';
+
+  for(let i=0;i<TRACK_LEN;i++){
+    const item = (winnerIdx>=0 && i===winnerIdx) ? winner : items[i%items.length];
+    const el = document.createElement('div');
+    el.className = `reel-item ri-${item.r}`;
+    el.innerHTML=`<div class="ri-ico">${item.ico}</div><div class="ri-val">${item.lbl}</div>`;
+    reel.appendChild(el);
+  }
+}
+
+/* ───────────────────────────────────────
+   SPIN ANIMATION
+─────────────────────────────────────── */
+async function doSpin(count=1){
+  if(spinning) return;
+  spinning = true;
+  setSpinEnabled(false);
+  document.getElementById('resultPill').classList.remove('show');
+  tg?.HapticFeedback?.impactOccurred('medium');
+
+  /* Pick a winner (фронт — без бекенду) */
+  const items   = TIERS[curTier].items;
+  const weights = items.map((_,i)=>Math.pow(.42,i));
+  const sum     = weights.reduce((a,b)=>a+b,0);
+  let r         = Math.random()*sum;
+  let winner    = items[0];
+  for(let i=0;i<items.length;i++){ r-=weights[i]; if(r<=0){winner=items[i];break;} }
+
+  /* Place winner ~75% into track */
+  const winIdx = Math.floor(TRACK_LEN*.74);
+  buildReel(curTier, winIdx, winner);
+
+  /* Force layout */
+  const reel  = document.getElementById('reel');
+  reel.getBoundingClientRect();
+
+  /* Calculate offset */
+  const vp     = reel.parentElement;
+  const els    = reel.children;
+  const itemW  = els[0].offsetWidth + 8; /* gap=8 */
+  const vpW    = vp.clientWidth;
+  const center = vpW/2 - itemW/2;
+  const targetX = els[winIdx].offsetLeft;
+  const finalX  = -(targetX - center);
+
+  /* Easing: fast start → slow deceleration */
+  reel.style.transition = `transform ${SPIN_DUR}ms cubic-bezier(.08,.01,.14,1)`;
+  reel.style.transform  = `translateX(${finalX}px)`;
+
+  /* Haptic mid-spin */
+  setTimeout(()=>tg?.HapticFeedback?.selectionChanged?.(),SPIN_DUR*.4);
+  setTimeout(()=>tg?.HapticFeedback?.selectionChanged?.(),SPIN_DUR*.7);
+
+  await delay(SPIN_DUR);
+
+  /* Highlight winner */
+  els[winIdx].classList.add('winner');
+  tg?.HapticFeedback?.notificationOccurred('success');
+
+  /* Show result pill */
+  await delay(120);
+  const rp = document.getElementById('resultPill');
+  document.getElementById('rpIco').textContent = winner.ico;
+  document.getElementById('rpAmt').textContent = `+${winner.val} ⭐`;
+  rp.classList.add('show');
+
+  /* Win modal after short pause */
+  await delay(420);
+  openWinModal(winner);
+
+  spinning = false;
+  setSpinEnabled(true);
+}
+
+function setSpinEnabled(on){
+  document.getElementById('btnSpin').disabled = !on;
+  document.getElementById('btnX5').disabled   = !on;
+}
+
+/* ───────────────────────────────────────
+   WIN MODAL + CONFETTI
+─────────────────────────────────────── */
+function openWinModal(winner){
+  document.getElementById('winIco').textContent = winner.ico;
+  document.getElementById('winAmt').textContent = `+${winner.val} ⭐`;
+  document.getElementById('winModal').classList.add('open');
+  spawnConfetti();
+  tg?.HapticFeedback?.notificationOccurred('success');
+}
+
+function closeWin(){
+  document.getElementById('winModal').classList.remove('open');
+}
+
+function spawnConfetti(){
+  const layer = document.getElementById('confettiLayer');
+  layer.innerHTML='';
+  const cols = ['#f0c040','#ffd97d','#3b8bff','#b060ff','#3fd47a','#ff6688','#fff'];
+  for(let i=0;i<28;i++){
+    const p   = document.createElement('div');
+    const w   = Math.random()*7+3;
+    const h   = Math.random()*10+4;
+    const dur = .7+Math.random()*1.2;
+    const del = Math.random()*.35;
+    p.className='conf-piece';
+    p.style.cssText=`
+      width:${w}px;height:${h}px;
+      border-radius:${Math.random()>.5?'50%':'2px'};
+      background:${cols[0|Math.random()*cols.length]};
+      left:${Math.random()*100}%;
+      top:5%;
+      animation:confFall ${dur}s ease-in ${del}s both;
+      transform:rotate(${Math.random()*360}deg);
+    `;
+    layer.appendChild(p);
+  }
+}
+
+/* Confetti keyframe injection */
+(()=>{
+  const s = document.createElement('style');
+  s.textContent=`@keyframes confFall{
+    0%  {transform:translateY(-10px) rotate(0deg);   opacity:1}
+    100%{transform:translateY(320px) rotate(720deg); opacity:0}
+  }`;
+  document.head.appendChild(s);
+})();
+
+/* ───────────────────────────────────────
+   BOOST
+─────────────────────────────────────── */
+function buyBoost(level, cost){
+  tg?.showConfirm?.(`Купити Буст рівня ${level} за ${cost} ⭐?`, ok=>{
+    if(!ok) return;
+    tg?.HapticFeedback?.notificationOccurred('success');
+    /* Mark level active */
+    for(let l=1;l<=4;l++){
+      const el = document.getElementById('bl'+l);
+      if(!el) continue;
+      if(l<=level){
+        el.classList.add('active');
+        const btn = el.querySelector('.btn-buy-boost');
+        if(btn){ btn.textContent='✓'; btn.disabled=true; }
+      }
+    }
+    tg?.showPopup?.({message:`✅ Буст рівня ${level} активовано!`,buttons:[{type:'ok'}]});
+  });
+}
+
+/* ───────────────────────────────────────
+   UTILS
+─────────────────────────────────────── */
+function delay(ms){ return new Promise(r=>setTimeout(r,ms)); }
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+</script>
+
+</body>
+</html>
