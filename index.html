@@ -41,9 +41,7 @@ body::before{content:'';position:fixed;inset:0;
 @keyframes screenOut{to{opacity:0;transform:translateY(-14px)}}
 
 /* ── HEADER ── */
-.header{position:sticky;top:0;z-index:50;display:flex;align-items:center;justify-content:space-between;
-  padding:16px 18px 14px;background:linear-gradient(to bottom,var(--c-bg) 70%,transparent);
-  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);}
+.header{display:flex;align-items:center;justify-content:space-between;padding:16px 18px 14px;}
 .logo{display:flex;align-items:center;gap:8px;}
 .logo-gem{width:30px;height:30px;}
 .logo-gem svg{width:100%;height:100%;filter:drop-shadow(0 0 8px rgba(59,139,255,.7));animation:gemGlow 6s ease-in-out infinite;}
@@ -232,17 +230,61 @@ body::before{content:'';position:fixed;inset:0;
   display:flex;align-items:center;justify-content:center;transition:.15s;}
 
 /* CENTER WHEEL */
-.upg-wheel-wrap{flex-shrink:0;width:120px;display:flex;flex-direction:column;align-items:center;gap:8px;}
-.wheel-ring{position:relative;width:110px;height:110px;}
-.wheel-svg{width:110px;height:110px;transform:rotate(-90deg);}
-.wheel-track{fill:none;stroke:rgba(255,255,255,.06);stroke-width:9;}
-.wheel-win-arc{fill:none;stroke-width:9;stroke-linecap:round;stroke:url(#arcGrad);
-  transition:stroke-dasharray .5s var(--ease-expo);}
-.wheel-needle{position:absolute;bottom:2px;left:50%;transform:translateX(-50%);
-  width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;
-  border-bottom:16px solid var(--c-gold);filter:drop-shadow(0 0 5px rgba(240,192,64,.7));}
-.wheel-center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;}
-.wheel-pct{font-family:var(--f-head);font-size:19px;font-weight:800;line-height:1;transition:color .3s;}
+.upg-wheel-wrap{flex-shrink:0;width:130px;display:flex;flex-direction:column;align-items:center;gap:8px;}
+.wheel-ring{position:relative;width:120px;height:120px;}
+
+/*
+  Arc geometry:
+  - SVG circle stroke starts at angle 0 = RIGHT (3 o'clock)
+  - We want win-zone centered at BOTTOM (6 o'clock)
+  - So we rotate SVG by +90deg  →  0 = BOTTOM
+  - stroke-dashoffset shifts the arc so it's symmetric around bottom
+  - offset = circ/2  →  arc centred at bottom
+*/
+.wheel-svg{
+  width:120px;height:120px;
+  transform:rotate(90deg);     /* start of stroke = bottom */
+}
+.wheel-track{fill:none;stroke:rgba(255,255,255,.07);stroke-width:9;}
+.wheel-win-arc{
+  fill:none;stroke-width:9;stroke-linecap:round;
+  stroke:url(#arcGrad);
+  transition:stroke-dasharray .55s var(--ease-expo), stroke-dashoffset .55s var(--ease-expo);
+}
+
+/*
+  Needle sits at BOTTOM of the ring and points INWARD (up).
+  The .wheel-needle-wrap covers the full ring and rotates around its centre.
+  Default rotation = 0  → needle at bottom.
+  Positive rotation = clockwise.
+*/
+.wheel-needle-wrap{
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  transform:rotate(0deg);
+  transform-origin:50% 50%;
+}
+.wheel-needle-arrow{
+  position:absolute;
+  /* bottom of ring, pointing up (inward) */
+  bottom:1px;
+  left:50%;
+  transform:translateX(-50%);
+  width:0;height:0;
+  /* triangle pointing UP */
+  border-left:7px solid transparent;
+  border-right:7px solid transparent;
+  border-bottom:22px solid var(--c-gold);
+  filter:drop-shadow(0 0 8px rgba(240,192,64,1));
+}
+
+.wheel-center{
+  position:absolute;top:50%;left:50%;
+  transform:translate(-50%,-50%);
+  text-align:center;pointer-events:none;
+}
+.wheel-pct{font-family:var(--f-head);font-size:20px;font-weight:800;line-height:1;transition:color .3s;}
 .wheel-label{font-size:8px;letter-spacing:1px;color:rgba(255,255,255,.3);margin-top:2px;}
 .chance-low{color:#ff5555;}.chance-medium{color:var(--c-gold);}.chance-high{color:#3fd47a;}
 
@@ -276,9 +318,7 @@ body::before{content:'';position:fixed;inset:0;
 .upg-result.lose .upg-result-title{color:#ff4466;}
 .upg-result-sub{font-size:13px;color:rgba(255,255,255,.4);}
 
-/* wheel spin anim */
-@keyframes wheelSpin{0%{transform:rotate(-90deg)}100%{transform:rotate(990deg)}}
-.wheel-svg.spinning{animation:wheelSpin 1.4s cubic-bezier(.25,0,.2,1) forwards;}
+/* wheel needle spin is driven by JS requestAnimationFrame */
 
 /* ═══════════════════════════════════════
    BALANCE BOTTOM SHEET
@@ -373,13 +413,13 @@ body::before{content:'';position:fixed;inset:0;
     <div class="bal-pill" id="balPill" onclick="openBalModal()">
       <span class="bal-star">⭐</span>
       <span class="bal-num" id="balNum">—</span>
-      <span style="font-size:11px;color:rgba(255,255,255,.3)">зірок</span>
+      <span style="font-size:11px;color:rgba(255,255,255,.3)">stars</span>
     </div>
   </header>
 
   <div class="status-bar">
     <div class="s-dot spin" id="sDot"></div>
-    <span id="sText">Підключення...</span>
+    <span id="sText">Connecting...</span>
   </div>
 
   <div class="boost-banner" onclick="go('s-upgrader')">
@@ -388,36 +428,36 @@ body::before{content:'';position:fixed;inset:0;
       <div class="boost-emoji">⚡</div>
       <div class="boost-copy">
         <div class="boost-title">UPGRADER</div>
-        <div class="boost-sub">Апгрейди зірки та подарунки</div>
+        <div class="boost-sub">Upgrade your stars & gifts</div>
       </div>
       <div class="boost-hot">NEW</div>
     </div>
   </div>
 
   <div class="sec-head">
-    <span class="sec-title">Рулетки</span>
-    <span class="sec-badge">4 доступних</span>
+    <span class="sec-title">Roulettes</span>
+    <span class="sec-badge">4 available</span>
   </div>
   <div class="tier-grid">
-    <div class="tier-card common" onclick="openRoulette('common',10,'COMMON','📦','до 30 ⭐')">
+    <div class="tier-card common" onclick="openRoulette('common',10,'COMMON')">
       <div class="card-icon">📦</div><div class="card-name">COMMON</div>
-      <div class="card-range">до 30 ⭐</div><div class="card-price">10 ⭐</div>
+      <div class="card-range">up to 30 ⭐</div><div class="card-price">10 ⭐</div>
     </div>
-    <div class="tier-card rare" onclick="openRoulette('rare',25,'RARE','💎','до 100 ⭐')">
+    <div class="tier-card rare" onclick="openRoulette('rare',25,'RARE')">
       <div class="card-icon">💎</div><div class="card-name">RARE</div>
-      <div class="card-range">до 100 ⭐</div><div class="card-price">25 ⭐</div>
+      <div class="card-range">up to 100 ⭐</div><div class="card-price">25 ⭐</div>
     </div>
-    <div class="tier-card epic" onclick="openRoulette('epic',50,'EPIC','🔥','до 300 ⭐')">
+    <div class="tier-card epic" onclick="openRoulette('epic',50,'EPIC')">
       <div class="card-icon">🔥</div><div class="card-name">EPIC</div>
-      <div class="card-range">до 300 ⭐</div><div class="card-price">50 ⭐</div>
+      <div class="card-range">up to 300 ⭐</div><div class="card-price">50 ⭐</div>
     </div>
-    <div class="tier-card legend" onclick="openRoulette('legend',100,'LEGEND','👑','до 1000 ⭐')">
+    <div class="tier-card legend" onclick="openRoulette('legend',100,'LEGEND')">
       <div class="card-icon">👑</div><div class="card-name">LEGEND</div>
-      <div class="card-range">до 1000 ⭐</div><div class="card-price">100 ⭐</div>
+      <div class="card-range">up to 1000 ⭐</div><div class="card-price">100 ⭐</div>
     </div>
   </div>
   <div class="divider"></div>
-  <div class="sec-head"><span class="sec-title">Останні виграші</span></div>
+  <div class="sec-head"><span class="sec-title">Recent Wins</span></div>
   <div class="wins-wrap" id="winsWrap"></div>
 </div>
 
@@ -425,13 +465,13 @@ body::before{content:'';position:fixed;inset:0;
 <!-- ══════════ ROULETTE ══════════ -->
 <div id="s-roulette" class="screen">
   <div class="rl-topbar">
-    <button class="btn-back" onclick="back()"><span>‹</span>Назад</button>
+    <button class="btn-back" onclick="back()"><span>‹</span>Back</button>
     <div class="tb-bal" id="rlBal">— ⭐</div>
   </div>
   <div class="rl-hero">
     <div class="rl-badge" id="rlBadge">COMMON</div>
-    <h1 class="rl-title" id="rlTitle">Common Рулетка</h1>
-    <p class="rl-sub">Прокрути — отримай нагороду</p>
+    <h1 class="rl-title" id="rlTitle">Common Roulette</h1>
+    <p class="rl-sub">Spin the wheel — claim your reward</p>
   </div>
   <div class="track-wrap">
     <div class="track-arrow">▼</div>
@@ -442,12 +482,11 @@ body::before{content:'';position:fixed;inset:0;
   </div>
   <div class="result-pill" id="resultPill">
     <div class="rp-ico" id="rpIco">🎉</div>
-    <div><div class="rp-got">Твій виграш</div><div class="rp-amt" id="rpAmt">+50 ⭐</div></div>
+    <div><div class="rp-got">Your reward</div><div class="rp-amt" id="rpAmt">+50 ⭐</div></div>
   </div>
   <div class="spin-zone" id="spinZone">
-    <div class="spin-cost" id="spinCost">Вартість: 10 ⭐</div>
-    <button class="btn-spin" id="btnSpin" onclick="doSpin(1)">КРУТИТИ<div class="btn-spin-shine"></div></button>
-    <button class="btn-spin btn-spin-x5" id="btnX5" onclick="doSpin(5)">× 5 СПІНІВ</button>
+    <div class="spin-cost" id="spinCost">Cost: 10 ⭐</div>
+    <button class="btn-spin" id="btnSpin" onclick="doSpin()">SPIN<div class="btn-spin-shine"></div></button>
   </div>
 </div>
 
@@ -455,14 +494,14 @@ body::before{content:'';position:fixed;inset:0;
 <!-- ══════════ UPGRADER ══════════ -->
 <div id="s-upgrader" class="screen">
   <div class="rl-topbar">
-    <button class="btn-back" onclick="back()"><span>‹</span>Назад</button>
+    <button class="btn-back" onclick="back()"><span>‹</span>Back</button>
     <div class="tb-bal" id="upgBal">— ⭐</div>
   </div>
 
   <div class="upg-hero">
     <div class="upg-hero-icon">⚡</div>
     <div class="upg-hero-title">UPGRADER</div>
-    <div class="upg-hero-sub">Постав — і отримай більше</div>
+    <div class="upg-hero-sub">Place a bet — win more</div>
   </div>
 
   <!-- 3 columns: bet | wheel | reward -->
@@ -470,14 +509,14 @@ body::before{content:'';position:fixed;inset:0;
 
     <!-- BET -->
     <div class="upg-slot" id="slotBet" onclick="openPicker('bet')">
-      <div class="upg-slot-label">СТАВКА</div>
+      <div class="upg-slot-label">BET</div>
       <div class="upg-slot-empty" id="slotBetEmpty">
         <div class="upg-slot-plus">+</div>
-        <div class="upg-slot-hint">Зірки або<br>подарунок</div>
+        <div class="upg-slot-hint">Stars or<br>a gift</div>
       </div>
       <div class="upg-slot-item" id="slotBetItem" style="display:none">
         <div class="upg-item-icon" id="betIcon">⭐</div>
-        <div class="upg-item-name" id="betName">Зірки</div>
+        <div class="upg-item-name" id="betName">Stars</div>
         <div class="upg-item-val"  id="betVal">50 ⭐</div>
         <button class="upg-slot-remove" onclick="clearSlot(event,'bet')">×</button>
       </div>
@@ -486,7 +525,7 @@ body::before{content:'';position:fixed;inset:0;
     <!-- WHEEL -->
     <div class="upg-wheel-wrap">
       <div class="wheel-ring">
-        <svg class="wheel-svg" id="wheelSvg" viewBox="0 0 110 110">
+        <svg class="wheel-svg" id="wheelSvg" viewBox="0 0 120 120">
           <defs>
             <linearGradient id="arcGrad" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%"   stop-color="#ff3344"/>
@@ -495,14 +534,17 @@ body::before{content:'';position:fixed;inset:0;
             </linearGradient>
           </defs>
           <g id="ticks"></g>
-          <circle class="wheel-track" cx="55" cy="55" r="46"/>
-          <circle class="wheel-win-arc" id="winArc" cx="55" cy="55" r="46"
-            stroke-dasharray="0 289" stroke-dashoffset="0"/>
+          <circle class="wheel-track"   cx="60" cy="60" r="50"/>
+          <circle class="wheel-win-arc" id="winArc" cx="60" cy="60" r="50"
+            stroke-dasharray="0 314" stroke-dashoffset="0"/>
         </svg>
-        <div class="wheel-needle"></div>
+        <!-- Rotating needle arrow -->
+        <div class="wheel-needle-wrap" id="wheelNeedleWrap">
+          <div class="wheel-needle-arrow"></div>
+        </div>
         <div class="wheel-center">
           <div class="wheel-pct chance-medium" id="wheelPct">50%</div>
-          <div class="wheel-label" id="wheelLbl">середній</div>
+          <div class="wheel-label" id="wheelLbl">medium</div>
         </div>
       </div>
 
@@ -520,14 +562,14 @@ body::before{content:'';position:fixed;inset:0;
 
     <!-- REWARD -->
     <div class="upg-slot slot-target" id="slotReward" onclick="openPicker('reward')">
-      <div class="upg-slot-label">НАГОРОДА</div>
+      <div class="upg-slot-label">REWARD</div>
       <div class="upg-slot-empty" id="slotRewardEmpty">
         <div class="upg-slot-plus">+</div>
-        <div class="upg-slot-hint">Що хочеш<br>отримати</div>
+        <div class="upg-slot-hint">What you<br>want to win</div>
       </div>
       <div class="upg-slot-item" id="slotRewardItem" style="display:none">
         <div class="upg-item-icon" id="rewardIcon">👑</div>
-        <div class="upg-item-name" id="rewardName">Нагорода</div>
+        <div class="upg-item-name" id="rewardName">Reward</div>
         <div class="upg-item-val"  id="rewardVal">100 ⭐</div>
         <button class="upg-slot-remove" onclick="clearSlot(event,'reward')">×</button>
       </div>
@@ -537,8 +579,8 @@ body::before{content:'';position:fixed;inset:0;
   <!-- RESULT -->
   <div class="upg-result" id="upgResult">
     <div class="upg-result-ico" id="upgResultIco">🎉</div>
-    <div class="upg-result-title" id="upgResultTitle">ПЕРЕМОГА!</div>
-    <div class="upg-result-sub" id="upgResultSub">+200 ⭐ зараховано</div>
+    <div class="upg-result-title" id="upgResultTitle">WIN!</div>
+    <div class="upg-result-sub" id="upgResultSub">+200 ⭐ added</div>
   </div>
 
   <!-- UPGRADE BTN -->
@@ -558,7 +600,7 @@ body::before{content:'';position:fixed;inset:0;
   <div class="bottom-sheet" style="max-height:72vh;overflow-y:auto">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title" id="pickerTitle">ВИБІР</div>
+      <div class="sheet-title" id="pickerTitle">SELECT</div>
       <button class="sheet-close" onclick="closePicker()">×</button>
     </div>
     <div id="pickerList" style="padding:14px 20px 0;display:flex;flex-direction:column;gap:9px;"></div>
@@ -571,19 +613,19 @@ body::before{content:'';position:fixed;inset:0;
   <div class="bottom-sheet">
     <div class="sheet-handle"></div>
     <div class="sheet-head">
-      <div class="sheet-title">МІЙ БАЛАНС</div>
+      <div class="sheet-title">MY BALANCE</div>
       <button class="sheet-close" onclick="closeBalModal()">×</button>
     </div>
     <div class="bal-big">
       <div class="bal-big-num" id="modalBalNum">—</div>
-      <div class="bal-big-label">ЗІРОК ⭐</div>
+      <div class="bal-big-label">STARS ⭐</div>
     </div>
     <div class="bal-stats">
-      <div class="bal-stat"><div class="bstat-val" id="statSpins">0</div><div class="bstat-key">СПІНІВ</div></div>
-      <div class="bal-stat"><div class="bstat-val" id="statWon">0</div><div class="bstat-key">ВИГРАНО ⭐</div></div>
-      <div class="bal-stat"><div class="bstat-val" id="statUpg">0</div><div class="bstat-key">АПГРЕЙДІВ</div></div>
+      <div class="bal-stat"><div class="bstat-val" id="statSpins">0</div><div class="bstat-key">SPINS</div></div>
+      <div class="bal-stat"><div class="bstat-val" id="statWon">0</div><div class="bstat-key">WON ⭐</div></div>
+      <div class="bal-stat"><div class="bstat-val" id="statUpg">0</div><div class="bstat-key">UPGRADES</div></div>
     </div>
-    <div class="hist-head">ОСТАННЯ АКТИВНІСТЬ</div>
+    <div class="hist-head">RECENT ACTIVITY</div>
     <div class="hist-list" id="histList"></div>
   </div>
 </div>
@@ -593,10 +635,10 @@ body::before{content:'';position:fixed;inset:0;
   <div class="win-box">
     <div class="confetti-layer" id="confettiLayer"></div>
     <div class="win-ico" id="winIco">🏆</div>
-    <div class="win-title">ВИГРАШ</div>
+    <div class="win-title">YOU WON</div>
     <div class="win-amount" id="winAmt">+100 ⭐</div>
-    <div class="win-sub">зараховано на баланс</div>
-    <button class="btn-win-close" onclick="closeWin()">Забрати ✓</button>
+    <div class="win-sub">added to balance</div>
+    <button class="btn-win-close" onclick="closeWin()">Collect ✓</button>
   </div>
 </div>
 
@@ -637,24 +679,24 @@ const TIERS={
 };
 
 const PICKER_ITEMS=[
-  {ico:'⭐',name:'Зірки',   val:50,  lbl:'50 ⭐'},
-  {ico:'⭐',name:'Зірки',   val:100, lbl:'100 ⭐'},
-  {ico:'⭐',name:'Зірки',   val:200, lbl:'200 ⭐'},
-  {ico:'⭐',name:'Зірки',   val:500, lbl:'500 ⭐'},
-  {ico:'🎁',name:'Подарунок',val:150, lbl:'150 ⭐'},
-  {ico:'💎',name:'Кристал',  val:250, lbl:'250 ⭐'},
-  {ico:'🔥',name:'Вогонь',   val:400, lbl:'400 ⭐'},
-  {ico:'👑',name:'Корона',   val:800, lbl:'800 ⭐'},
-  {ico:'🏆',name:'Трофей',   val:1500,lbl:'1500 ⭐'},
+  {ico:'⭐',name:'Stars',   val:50,  lbl:'50 ⭐'},
+  {ico:'⭐',name:'Stars',   val:100, lbl:'100 ⭐'},
+  {ico:'⭐',name:'Stars',   val:200, lbl:'200 ⭐'},
+  {ico:'⭐',name:'Stars',   val:500, lbl:'500 ⭐'},
+  {ico:'🎁',name:'Gift',    val:150, lbl:'150 ⭐'},
+  {ico:'💎',name:'Crystal', val:250, lbl:'250 ⭐'},
+  {ico:'🔥',name:'Flame',   val:400, lbl:'400 ⭐'},
+  {ico:'👑',name:'Crown',   val:800, lbl:'800 ⭐'},
+  {ico:'🏆',name:'Trophy',  val:1500,lbl:'1500 ⭐'},
 ];
 
 const FAKE_WINS=[
-  {ico:'🏆',name:'Олег М.',  tier:'LEGEND',amt:1000},
-  {ico:'🌟',name:'Марія К.', tier:'EPIC',  amt:300},
-  {ico:'💎',name:'Іван Д.',  tier:'RARE',  amt:100},
-  {ico:'✨',name:'Аліна В.', tier:'COMMON',amt:30},
-  {ico:'🔥',name:'Дмитро С.',tier:'EPIC',  amt:150},
-  {ico:'💛',name:'Катя Л.',  tier:'LEGEND',amt:500},
+  {ico:'🏆',name:'xXx_Shadow',   tier:'LEGEND',amt:1000},
+  {ico:'🌟',name:'ProGamer99',    tier:'EPIC',  amt:300},
+  {ico:'💎',name:'NightWolf_',    tier:'RARE',  amt:100},
+  {ico:'✨',name:'PixelQueen',    tier:'COMMON',amt:30},
+  {ico:'🔥',name:'d4rkm4tter',   tier:'EPIC',  amt:150},
+  {ico:'💛',name:'l3g3nd_kv',    tier:'LEGEND',amt:500},
 ];
 
 const SPIN_DUR=4600, TRACK_LEN=42;
@@ -666,6 +708,7 @@ let pickerFor='bet';
 let balanceVal=0;
 let stats={spins:0,won:0,upgrades:0};
 let txHistory=[];
+let lastNeedleAngle=0;  /* tracks cumulative needle rotation for smooth continuity */
 
 /* ── INIT ── */
 (function(){
@@ -705,12 +748,12 @@ function startParticles(){
 
 /* ── BALANCE ── */
 async function loadBalance(){
-  setStatus('spin','Підключення...');
+  setStatus('spin','Connecting...');
   try{
     const r=await fetch(`${BACKEND}/api/balance`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({initData:tg?.initData||''})});
     const d=await r.json();
-    if(d.success){setBalance(d.balance);setStatus('live','Онлайн');}else throw 0;
-  }catch{setBalance(512);setStatus('live','Демо режим');}
+    if(d.success){setBalance(d.balance);setStatus('live','Online');}else throw 0;
+  }catch{setBalance(512);setStatus('live','Demo mode');}
 }
 function setBalance(v){
   balanceVal=Number(v)||0;
@@ -747,7 +790,12 @@ function renderWins(wins){
   });
 }
 function addRandomWin(){
-  const pool=[...FAKE_WINS,{ico:'⭐',name:'Богдан Т.',tier:'COMMON',amt:20},{ico:'💜',name:'Ольга К.',tier:'EPIC',amt:80}];
+  const pool=[...FAKE_WINS,
+    {ico:'⭐',name:'cr4zy_t0m',  tier:'COMMON',amt:20},
+    {ico:'💜',name:'void_hunter', tier:'EPIC',  amt:80},
+    {ico:'🔷',name:'IceBr34ker',  tier:'RARE',  amt:60},
+    {ico:'🌟',name:'Skyw4lker',   tier:'LEGEND',amt:200},
+  ];
   const x=pool[0|Math.random()*pool.length];
   const w=document.getElementById('winsWrap');
   const d=document.createElement('div');d.className='win-row';
@@ -760,9 +808,8 @@ function openRoulette(tier,price,label){
   curTier=tier;
   document.getElementById('rlBadge').textContent=label;
   document.getElementById('rlBadge').className=`rl-badge ${tier}`;
-  document.getElementById('rlTitle').textContent=label+' Рулетка';
-  document.getElementById('spinCost').textContent=`Вартість: ${price} ⭐`;
-  document.getElementById('btnX5').textContent=`× 5 СПІНІВ  (${price*5} ⭐)`;
+  document.getElementById('rlTitle').textContent=label+' Roulette';
+  document.getElementById('spinCost').textContent=`Cost: ${price} ⭐`;
   document.getElementById('spinZone').className=`spin-zone spin-btn-${tier}`;
   document.getElementById('resultPill').classList.remove('show');
   buildReel(tier);setSpinOk(true);go('s-roulette');
@@ -802,7 +849,7 @@ async function doSpin(count=1){
   els[winIdx].classList.add('winner');
   tg?.HapticFeedback?.notificationOccurred('success');
   stats.spins++;stats.won+=winner.val;
-  pushTx(`Рулетка · ${curTier.toUpperCase()}`,`+${winner.val} ⭐`,true,winner.ico);
+  pushTx(`Roulette · ${curTier.toUpperCase()}`,`+${winner.val} ⭐`,true,winner.ico);
   await delay(120);
   document.getElementById('rpIco').textContent=winner.ico;
   document.getElementById('rpAmt').textContent=`+${winner.val} ⭐`;
@@ -818,28 +865,41 @@ function setSpinOk(on){document.getElementById('btnSpin').disabled=!on;document.
 ══════════════════════════════════ */
 /* Wheel */
 function buildWheelTicks(){
-  const g=document.getElementById('ticks'),cx=55,cy=55,r=46;
+  const g=document.getElementById('ticks'),cx=60,cy=60,r=50;
   for(let i=0;i<60;i++){
-    const a=(i/60)*2*Math.PI-Math.PI/2,big=i%5===0,inner=big?40:43;
+    const a=(i/60)*2*Math.PI-Math.PI/2,big=i%5===0,inner=big?43:46;
     const x1=cx+r*Math.cos(a),y1=cy+r*Math.sin(a);
     const x2=cx+inner*Math.cos(a),y2=cy+inner*Math.sin(a);
     const l=document.createElementNS('http://www.w3.org/2000/svg','line');
     l.setAttribute('x1',x1);l.setAttribute('y1',y1);l.setAttribute('x2',x2);l.setAttribute('y2',y2);
-    l.setAttribute('stroke',big?'rgba(255,255,255,.2)':'rgba(255,255,255,.07)');
-    l.setAttribute('stroke-width',big?'1.2':'.7');
+    l.setAttribute('stroke',big?'rgba(255,255,255,.22)':'rgba(255,255,255,.07)');
+    l.setAttribute('stroke-width',big?'1.3':'.7');
     g.appendChild(l);
   }
 }
 
 function updateWheel(pct){
-  upgChance=pct;
-  const circ=2*Math.PI*46; // ~289
-  const arc=document.getElementById('winArc');
-  arc.style.strokeDasharray=`${circ*(pct/100)} ${circ*(1-pct/100)}`;
-  const el=document.getElementById('wheelPct');
-  el.textContent=pct+'%';
-  el.className='wheel-pct '+(pct<=33?'chance-low':pct<=66?'chance-medium':'chance-high');
-  document.getElementById('wheelLbl').textContent=pct<=33?'низький':pct<=66?'середній':'високий';
+  upgChance = pct;
+  const R    = 50;
+  const circ = 2 * Math.PI * R;          // 314.159…
+  const filled = circ * (pct / 100);     // how much arc to show
+
+  /*
+   * SVG is rotated +90deg so angle-0 of stroke = bottom.
+   * To centre the arc symmetrically around the bottom:
+   *   dashoffset = -(circ - filled) / 2
+   * This shifts the arc so equal "empty" sits on each side.
+   */
+  const offset = -(circ - filled) / 2;
+
+  const arc = document.getElementById('winArc');
+  arc.style.strokeDasharray  = `${filled} ${circ - filled}`;
+  arc.style.strokeDashoffset = `${offset}`;
+
+  const el = document.getElementById('wheelPct');
+  el.textContent = pct + '%';
+  el.className = 'wheel-pct ' + (pct <= 33 ? 'chance-low' : pct <= 66 ? 'chance-medium' : 'chance-high');
+  document.getElementById('wheelLbl').textContent = pct <= 33 ? 'low' : pct <= 66 ? 'medium' : 'high';
 }
 
 function setMult(m){
@@ -865,19 +925,19 @@ function setChance(pct){
 function recalcReward(){
   if(!upgBet)return;
   const v=Math.round(upgBet.val*upgMult);
-  upgReward={...upgBet,val:v,lbl:v+' ⭐',ico:'🏆',name:'Нагорода'};
+  upgReward={...upgBet,val:v,lbl:v+' ⭐',ico:'🏆',name:'Reward'};
   renderSlot('reward',upgReward);checkUpgBtn();
 }
 
 /* Picker */
 function openPicker(slot){
   pickerFor=slot;
-  document.getElementById('pickerTitle').textContent=slot==='bet'?'ВИБІР СТАВКИ':'ВИБІР НАГОРОДИ';
+  document.getElementById('pickerTitle').textContent=slot==='bet'?'SELECT BET':'SELECT REWARD';
   const list=document.getElementById('pickerList');list.innerHTML='';
   PICKER_ITEMS.forEach(item=>{
     const row=document.createElement('div');
     row.style.cssText='display:flex;align-items:center;gap:12px;padding:12px 14px;background:var(--c-card);border:1px solid rgba(255,255,255,.1);border-radius:var(--r-md);cursor:pointer;transition:border-color .15s;';
-    row.innerHTML=`<div style="font-size:26px">${item.ico}</div><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#dde">${item.name}</div><div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">Вартість</div></div><div style="font-family:var(--f-head);font-size:13px;color:var(--c-gold)">${item.lbl}</div>`;
+    row.innerHTML=`<div style="font-size:26px">${item.ico}</div><div style="flex:1"><div style="font-size:14px;font-weight:600;color:#dde">${item.name}</div><div style="font-size:11px;color:rgba(255,255,255,.3);margin-top:2px">Value</div></div><div style="font-family:var(--f-head);font-size:13px;color:var(--c-gold)">${item.lbl}</div>`;
     row.addEventListener('mouseenter',()=>row.style.borderColor='rgba(240,192,64,.3)');
     row.addEventListener('mouseleave',()=>row.style.borderColor='rgba(255,255,255,.1)');
     row.onclick=()=>{
@@ -914,45 +974,111 @@ function clearSlot(e,slot){
 
 function checkUpgBtn(){document.getElementById('btnUpgrade').disabled=!(upgBet&&upgReward);}
 
-/* Upgrade */
+/* ──────────────────────────────────────────────────────
+   UPGRADE — deterministic spin:
+   1. Decide WIN/LOSE first (fair RNG).
+   2. Pick a target angle that lands INSIDE win-zone (win)
+      or OUTSIDE win-zone (lose).
+   3. Animate needle to exactly that angle.
+   4. Show result that matches where needle actually stopped.
+
+   Arc geometry (after SVG rotate +90deg + dashoffset):
+     The win-arc is centred at 0° (bottom of ring).
+     Win zone spans:  -halfArc … +halfArc  (degrees, 0 = bottom)
+     Needle angle 0° = bottom.
+     Positive = clockwise.
+────────────────────────────────────────────────────── */
 async function doUpgrade(){
-  if(upgrading||!upgBet||!upgReward)return;
-  upgrading=true;document.getElementById('btnUpgrade').disabled=true;
-  document.getElementById('upgResult').className='upg-result';
+  if(upgrading || !upgBet || !upgReward) return;
+  upgrading = true;
+  document.getElementById('btnUpgrade').disabled = true;
+  document.getElementById('upgResult').className = 'upg-result';
   tg?.HapticFeedback?.impactOccurred('heavy');
 
-  /* wheel spin visual */
-  const svg=document.getElementById('wheelSvg');
-  svg.classList.add('spinning');
-  await delay(1400);
-  svg.classList.remove('spinning');
+  /* 1. Fair coin flip */
+  const won = Math.random() * 100 < upgChance;
 
-  const won=Math.random()*100<upgChance;
-  const res=document.getElementById('upgResult');
+  /* 2. Target angle (degrees, 0 = bottom = centre of win-arc) */
+  const halfArc = (upgChance / 100) * 180;   // win arc spans ±halfArc around bottom
 
+  let targetAngle;
   if(won){
-    res.className='upg-result win show';
-    document.getElementById('upgResultIco').textContent='🎉';
-    document.getElementById('upgResultTitle').textContent='ПЕРЕМОГА!';
-    document.getElementById('upgResultSub').textContent=`+${upgReward.val} ⭐ зараховано`;
-    stats.won+=upgReward.val;stats.upgrades++;
-    pushTx(`Апгрейд · ${upgReward.name}`,`+${upgReward.val} ⭐`,true,upgReward.ico);
+    /* Land somewhere inside win zone — random within ±halfArc */
+    /* Shrink by 8deg padding so needle clearly lands inside */
+    const pad = Math.min(8, halfArc * 0.25);
+    targetAngle = (Math.random() * 2 - 1) * (halfArc - pad);
+  } else {
+    /* Land somewhere in LOSE zone — outside win arc */
+    /* Lose zone is the upper portion: halfArc … 360-halfArc */
+    const loseSpan = 360 - 2 * halfArc;
+    /* Pick random position in lose zone then offset to full circle */
+    const loseAngle = halfArc + 15 + Math.random() * (loseSpan - 30);
+    targetAngle = loseAngle;
+  }
+
+  /* 3. Spin: add 3 full rotations + random extra 0-360 for variety
+         so the needle travels a different distance each time       */
+  const extraRotations = 3;
+  const currentAngle   = lastNeedleAngle; /* persist between spins */
+  const totalTravel    = extraRotations * 360
+                         + ((targetAngle - (currentAngle % 360) + 360) % 360);
+
+  await animateNeedle(currentAngle, currentAngle + totalTravel);
+  lastNeedleAngle = currentAngle + totalTravel;
+
+  /* 4. Show result */
+  const res = document.getElementById('upgResult');
+  if(won){
+    res.className = 'upg-result win show';
+    document.getElementById('upgResultIco').textContent    = '🎉';
+    document.getElementById('upgResultTitle').textContent  = 'WIN!';
+    document.getElementById('upgResultSub').textContent    = `+${upgReward.val} ⭐ added to balance`;
+    stats.won += upgReward.val; stats.upgrades++;
+    pushTx(`Upgrade · ${upgReward.name}`, `+${upgReward.val} ⭐`, true, upgReward.ico);
     tg?.HapticFeedback?.notificationOccurred('success');
-    setTimeout(()=>openWinModal(upgReward),350);
-  }else{
-    res.className='upg-result lose show';
-    document.getElementById('upgResultIco').textContent='💔';
-    document.getElementById('upgResultTitle').textContent='ПРОГРАШ';
-    document.getElementById('upgResultSub').textContent=`Поставлено ${upgBet.val} ⭐`;
+    setTimeout(() => openWinModal(upgReward), 350);
+  } else {
+    res.className = 'upg-result lose show';
+    document.getElementById('upgResultIco').textContent    = '💔';
+    document.getElementById('upgResultTitle').textContent  = 'LOST';
+    document.getElementById('upgResultSub').textContent    = `Bet: ${upgBet.val} ⭐`;
     stats.upgrades++;
-    pushTx(`Апгрейд · ${upgBet.name}`,`-${upgBet.val} ⭐`,false,upgBet.ico);
+    pushTx(`Upgrade · ${upgBet.name}`, `-${upgBet.val} ⭐`, false, upgBet.ico);
     tg?.HapticFeedback?.notificationOccurred('error');
   }
 
-  upgBet=null;upgReward=null;
-  renderSlot('bet',null);renderSlot('reward',null);
-  upgrading=false;document.getElementById('btnUpgrade').disabled=true;
-  res.scrollIntoView({behavior:'smooth',block:'nearest'});
+  upgBet = null; upgReward = null;
+  renderSlot('bet', null); renderSlot('reward', null);
+  upgrading = false;
+  document.getElementById('btnUpgrade').disabled = true;
+  res.scrollIntoView({behavior:'smooth', block:'nearest'});
+}
+
+/* rAF animation: rotate needle from fromDeg → toDeg over 2.4s */
+function animateNeedle(fromDeg, toDeg){
+  return new Promise(resolve => {
+    const wrap     = document.getElementById('wheelNeedleWrap');
+    const DURATION = 2400;
+    let startTime  = null;
+
+    /* easeOutQuint — fast start, very slow stop */
+    const ease = t => 1 - Math.pow(1 - t, 5);
+
+    function frame(ts){
+      if(!startTime) startTime = ts;
+      const t   = Math.min((ts - startTime) / DURATION, 1);
+      const deg = fromDeg + (toDeg - fromDeg) * ease(t);
+      wrap.style.transform = `rotate(${deg}deg)`;
+
+      if(t < 1){
+        requestAnimationFrame(frame);
+      } else {
+        wrap.style.transform = `rotate(${toDeg}deg)`;
+        resolve();
+      }
+    }
+    requestAnimationFrame(frame);
+  });
 }
 
 /* ══════════════════════════════════
@@ -977,7 +1103,7 @@ function pushTx(title,amtStr,isPlus,ico){
 function renderHistory(){
   const list=document.getElementById('histList');list.innerHTML='';
   if(!txHistory.length){
-    list.innerHTML='<div style="padding:18px 0;font-size:13px;color:rgba(255,255,255,.25);text-align:center">Ще немає активності</div>';
+    list.innerHTML='<div style="padding:18px 0;font-size:13px;color:rgba(255,255,255,.25);text-align:center">No activity yet</div>';
     return;
   }
   txHistory.slice(0,8).forEach(h=>{
